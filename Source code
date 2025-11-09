@@ -1,0 +1,366 @@
+#include <iostream>
+#include <fstream>
+#include <iomanip>
+#include <string>
+using namespace std;
+
+// ======== MOVIE CLASS ========
+class Movie {
+public:
+    int movieID;
+    string name;
+    string time;
+    float price;
+    bool seats[50]; // false = available, true = booked
+
+    Movie() {
+        movieID = 0;
+        name = "";
+        time = "";
+        price = 0;
+        for (int i = 0; i < 50; i++)
+            seats[i] = false;
+    }
+
+    void inputData() {
+        cout << "\nEnter Movie ID: ";
+        cin >> movieID;
+        cin.ignore();
+        cout << "Enter Movie Name: ";
+        getline(cin, name);
+        cout << "Enter Show Time (e.g. 7:30 PM): ";
+        getline(cin, time);
+        cout << "Enter Ticket Price: ";
+        cin >> price;
+        cout << "Movie added successfully!\n";
+    }
+
+    void display() const {
+        cout << left << setw(10) << movieID
+             << setw(25) << name
+             << setw(15) << time
+             << "Rs. " << price << endl;
+    }
+};
+
+// ======== ADMIN CLASS ========
+class Admin {
+public:
+    void addMovie() {
+        ofstream fout("movies.dat", ios::binary | ios::app);
+        Movie m;
+        m.inputData();
+        fout.write((char*)&m, sizeof(Movie));
+        fout.close();
+    }
+
+    void viewMovies() {
+        ifstream fin("movies.dat", ios::binary);
+        if (!fin) {
+            cout << "No movies found!\n";
+            return;
+        }
+        Movie m;
+        cout << "\n---------------------------------------------\n";
+        cout << "Movie ID   Movie Name             Time        Price\n";
+        cout << "---------------------------------------------\n";
+        while (fin.read((char*)&m, sizeof(Movie))) {
+            m.display();
+        }
+        fin.close();
+    }
+};
+
+// ======== CUSTOMER CLASS ========
+class Customer {
+public:
+    void viewMovies() {
+        ifstream fin("movies.dat", ios::binary);
+        if (!fin) {
+            cout << "No movies available!\n";
+            return;
+        }
+        Movie m;
+        cout << "\nAvailable Movies:\n";
+        cout << "-------------------------------------------------\n";
+        cout << "Movie ID   Movie Name             Time        Price\n";
+        cout << "-------------------------------------------------\n";
+        while (fin.read((char*)&m, sizeof(Movie))) {
+            m.display();
+        }
+        fin.close();
+    }
+
+    void bookTicket() {
+        int id, seatNum;
+        cout << "\nEnter Movie ID to book ticket: ";
+        cin >> id;
+
+        fstream file("movies.dat", ios::binary | ios::in | ios::out);
+        if (!file) {
+            cout << "No movie data found!\n";
+            return;
+        }
+
+        Movie m;
+        bool found = false;
+        while (file.read((char*)&m, sizeof(Movie))) {
+            if (m.movieID == id) {
+                found = true;
+                cout << "\nYou selected: " << m.name << " (" << m.time << ")\n";
+                cout << "Ticket Price: Rs. " << m.price << endl;
+
+                cout << "\nSeat Numbers (1–50):\n";
+                for (int i = 0; i < 50; i++) {
+                    if (i % 10 == 0) cout << endl;
+                    cout << (m.seats[i] ? "[X] " : "[O] ");
+                }
+
+                cout << "\n\nEnter seat number to book: ";
+                cin >> seatNum;
+
+                if (seatNum < 1 || seatNum > 50) {
+                    cout << "Invalid seat number!\n";
+                    return;
+                }
+
+                if (m.seats[seatNum - 1]) {
+                    cout << "Sorry, that seat is already booked.\n";
+                } else {
+                    m.seats[seatNum - 1] = true;
+                    cout << "Seat booked successfully! Total amount: Rs. " << m.price << endl;
+
+                    // Move file pointer to overwrite
+                    int pos = -1 * (int)sizeof(Movie);
+                    file.seekp(pos, ios::cur);
+                    file.write((char*)&m, sizeof(Movie));
+                }
+                break;
+            }
+        }
+
+        if (!found)
+            cout << "Movie ID not found.\n";
+
+        file.close();
+    }
+};
+
+// ======== MENU SYSTEM ========
+void adminMenu() {
+    Admin admin;
+    int choice;
+    do {
+        cout << "\n========== ADMIN MENU ==========\n";
+        cout << "1. Add Movie\n";
+        cout << "2. View Movies\n";
+        cout << "3. Back to Main Menu\n";
+        cout << "Enter choice: ";
+        cin >> choice;
+
+        switch (choice) {
+        case 1:
+            admin.addMovie();
+            break;
+        case 2:
+            admin.viewMovies();
+            break;
+        case 3:
+            cout << "Returning to main menu...\n";
+            break;
+        default:
+            cout << "Invalid choice!\n";
+        }
+    } while (choice != 3);
+}
+
+void customerMenu() {
+    Customer customer;
+    int choice;
+    do {
+        cout << "\n========== CUSTOMER MENU ==========\n";
+        cout << "1. View Movies\n";
+        cout << "2. Book Ticket\n";
+        cout << "3. Back to Main Menu\n";
+        cout << "Enter choice: ";
+        cin >> choice;
+
+        switch (choice) {
+        case 1:
+            customer.viewMovies();
+            break;
+        case 2:
+            customer.bookTicket();
+            break;
+        case 3:
+            cout << "Returning to main menu...\n";
+            break;
+        default:
+            cout << "Invalid choice!\n";
+        }
+    } while (choice != 3);
+}
+
+// ======== MAIN FUNCTION ========
+int main() {
+    int choice;
+
+    do {
+        cout << "\n====================================\n";
+        cout << "     MOVIE TICKET BOOKING SYSTEM    \n";
+        cout << "====================================\n";
+        cout << "1. Admin Login\n";
+        cout << "2. Customer Menu\n";
+        cout << "3. Exit\n";
+        cout << "Enter your choice: ";
+        cin >> choice;
+
+        switch (choice) {
+        case 1:
+            adminMenu();
+            break;
+        case 2:
+            customerMenu();
+            break;
+        case 3:
+            cout << "Exiting system... Goodbye!\n";
+            break;
+        default:
+            cout << "Invalid option. Try again!\n";
+        }
+    } while (choice != 3);
+
+    return 0;
+}
+
+**--Output--**
+====================================
+     MOVIE TICKET BOOKING SYSTEM
+====================================
+1. Admin Login
+2. Customer Menu
+3. Exit
+Enter your choice: 1
+
+========== ADMIN MENU ==========
+1. Add Movie
+2. View Movies
+3. Back to Main Menu
+Enter choice: 1
+
+Enter Movie ID: 101
+Enter Movie Name: Inception
+Enter Show Time (e.g. 7:30 PM): 9:00 PM
+Enter Ticket Price: 250
+Movie added successfully!
+
+========== ADMIN MENU ==========
+1. Add Movie
+2. View Movies
+3. Back to Main Menu
+Enter choice: 1
+
+Enter Movie ID: 102
+Enter Movie Name: Avengers: Endgame
+Enter Show Time (e.g. 7:30 PM): 6:30 PM
+Enter Ticket Price: 300
+Movie added successfully!
+
+========== ADMIN MENU ==========
+1. Add Movie
+2. View Movies
+3. Back to Main Menu
+Enter choice: 2
+
+---------------------------------------------
+Movie ID   Movie Name             Time        Price
+---------------------------------------------
+101        Inception              9:00 PM     Rs. 250
+102        Avengers: Endgame      6:30 PM     Rs. 300
+---------------------------------------------
+
+Enter choice: 3
+Returning to main menu...
+
+====================================
+     MOVIE TICKET BOOKING SYSTEM
+====================================
+1. Admin Login
+2. Customer Menu
+3. Exit
+Enter your choice: 2
+
+========== CUSTOMER MENU ==========
+1. View Movies
+2. Book Ticket
+3. Back to Main Menu
+Enter choice: 1
+
+Available Movies:
+-------------------------------------------------
+Movie ID   Movie Name             Time        Price
+-------------------------------------------------
+101        Inception              9:00 PM     Rs. 250
+102        Avengers: Endgame      6:30 PM     Rs. 300
+-------------------------------------------------
+
+========== CUSTOMER MENU ==========
+1. View Movies
+2. Book Ticket
+3. Back to Main Menu
+Enter choice: 2
+
+Enter Movie ID to book ticket: 101
+
+You selected: Inception (9:00 PM)
+Ticket Price: Rs. 250
+
+Seat Numbers (1–50):
+
+[O] [O] [O] [O] [O] [O] [O] [O] [O] [O]
+[O] [O] [O] [O] [O] [O] [O] [O] [O] [O]
+[O] [O] [O] [O] [O] [O] [O] [O] [O] [O]
+[O] [O] [O] [O] [O] [O] [O] [O] [O] [O]
+[O] [O] [O] [O] [O] [O] [O] [O] [O] [O]
+
+Enter seat number to book: 12
+Seat booked successfully! Total amount: Rs. 250
+
+========== CUSTOMER MENU ==========
+1. View Movies
+2. Book Ticket
+3. Back to Main Menu
+Enter choice: 2
+
+Enter Movie ID to book ticket: 101
+
+You selected: Inception (9:00 PM)
+Ticket Price: Rs. 250
+
+Seat Numbers (1–50):
+
+[O] [O] [O] [O] [O] [O] [O] [O] [O] [O]
+[O] [O] [X] [O] [O] [O] [O] [O] [O] [O]
+[O] [O] [O] [O] [O] [O] [O] [O] [O] [O]
+[O] [O] [O] [O] [O] [O] [O] [O] [O] [O]
+[O] [O] [O] [O] [O] [O] [O] [O] [O] [O]
+
+Enter seat number to book: 12
+Sorry, that seat is already booked.
+
+========== CUSTOMER MENU ==========
+1. View Movies
+2. Book Ticket
+3. Back to Main Menu
+Enter choice: 3
+Returning to main menu...
+
+====================================
+     MOVIE TICKET BOOKING SYSTEM
+====================================
+1. Admin Login
+2. Customer Menu
+3. Exit
+Enter your choice: 3
+
+Exiting system... Goodbye!
